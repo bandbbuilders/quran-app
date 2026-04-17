@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { use } from 'react';
 import quranData from '@/data/quran.json';
@@ -8,24 +8,22 @@ import quranData from '@/data/quran.json';
 export default function SurahPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const surahNum = parseInt(id);
-  const [surah, setSurah] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const surah = quranData.find((s: any) => s.id === surahNum);
+  
   const [selectedAyah, setSelectedAyah] = useState<number | null>(null);
   const [tafsirLoading, setTafsirLoading] = useState(false);
   const [tafsirData, setTafsirData] = useState<string | null>(null);
   const [hadithData, setHadithData] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Use quran-cloud data directly instead of fetch
-    const targetSurah = quranData.find((s: any) => s.id === surahNum);
-    if (targetSurah) {
-      setSurah(targetSurah);
-    } else {
-      setError('Surah not found');
-    }
-    setLoading(false);
-  }, [surahNum]);
+  if (!surah) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="text-red-600 mb-4">Surah not found</div>
+        <Link href="/" className="text-emerald-700">← Back to Home</Link>
+      </div>
+    );
+  }
 
   async function fetchTafsir(ayahNum: number) {
     setTafsirLoading(true);
@@ -70,7 +68,7 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
           `${h.source}: ${h.text?.substring(0, 200)}...`
         ).join('\n\n'));
       } else {
-        setHadithData('No related hadith found for this verse. Try searching in hadith collections.');
+        setHadithData('No related hadith found for this verse.');
       }
     } catch (err) {
       console.error('Hadith error:', err);
@@ -81,29 +79,11 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
   }
 
   async function AskAI(ayahNum: number) {
-    setTafsirLoading(true);
     setSelectedAyah(ayahNum);
     setTafsirData(null);
     setHadithData(null);
-    setTafsirData('Ask your AI assistant: "Explain the tafsir and provide relevant hadith for Quran ' + surahNum + ':' + ayahNum + '"');
+    setTafsirData('Ask your AI: "Explain Quran ' + surahNum + ':' + ayahNum + ' with tafsir and hadith"');
     setTafsirLoading(false);
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-emerald-700 text-xl">Loading Quran...</div>
-      </div>
-    );
-  }
-
-  if (error || !surah) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="text-red-600 mb-4">{error || 'Surah not found'}</div>
-        <Link href="/" className="text-emerald-700">← Back to Home</Link>
-      </div>
-    );
   }
 
   return (
@@ -113,7 +93,7 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
           <Link href="/" className="text-white text-xl">←</Link>
           <div className="flex-1">
             <h1 className="text-xl font-bold">{surah.transliteration}</h1>
-            <p className="text-emerald-100 text-sm">{surah.translation} • {surah.total_verses} verses • {surah.type}</p>
+            <p className="text-emerald-100 text-sm">{surah.name} • {surah.total_verses} verses • {surah.type}</p>
           </div>
         </div>
       </header>
@@ -134,24 +114,24 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
             <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
               <button
                 onClick={() => fetchTafsir(ayat.id)}
-                disabled={tafsirLoading && selectedAyah === ayat.id}
-                className="flex-1 bg-emerald-600 text-white py-2 px-3 rounded hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                disabled={tafsirLoading}
+                className="flex-1 bg-emerald-600 text-white py-2 px-3 rounded hover:bg-emerald-700 disabled:opacity-50 text-sm font-medium"
               >
                 📖 Tafsir
               </button>
               <button
                 onClick={() => fetchHadith(ayat.id)}
-                disabled={tafsirLoading && selectedAyah === ayat.id}
-                className="flex-1 bg-blue-600 text-white py-2 px-3 rounded hover:bg-blue-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                disabled={tafsirLoading}
+                className="flex-1 bg-blue-600 text-white py-2 px-3 rounded hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
               >
                 📿 Hadith
               </button>
               <button
                 onClick={() => AskAI(ayat.id)}
                 disabled={tafsirLoading}
-                className="flex-1 bg-purple-600 text-white py-2 px-3 rounded hover:bg-purple-700 disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1"
+                className="flex-1 bg-purple-600 text-white py-2 px-3 rounded hover:bg-purple-700 disabled:opacity-50 text-sm font-medium"
               >
-                🤖 AI Explain
+                🤖 AI
               </button>
             </div>
 
@@ -163,7 +143,7 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
 
             {(tafsirData && selectedAyah === ayat.id) && (
               <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
-                <h4 className="font-bold text-yellow-800 mb-2">📖 Tafsir / Explanation</h4>
+                <h4 className="font-bold text-yellow-800 mb-2">📖 Tafsir</h4>
                 <p className="text-gray-700 text-sm whitespace-pre-line">
                   {tafsirData}
                 </p>
@@ -172,7 +152,7 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
 
             {(hadithData && selectedAyah === ayat.id) && (
               <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                <h4 className="font-bold text-blue-800 mb-2">📿 Related Hadith</h4>
+                <h4 className="font-bold text-blue-800 mb-2">📿 Hadith</h4>
                 <p className="text-gray-700 text-sm whitespace-pre-line">
                   {hadithData}
                 </p>
