@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { use } from 'react';
 
@@ -9,27 +9,38 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
   const surahNum = parseInt(id);
   const [surah, setSurah] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedAyah, setSelectedAyah] = useState<number | null>(null);
   const [tafsirLoading, setTafsirLoading] = useState(false);
   const [tafsirData, setTafsirData] = useState<string | null>(null);
   const [hadithData, setHadithData] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    
     async function loadSurah() {
       try {
         const res = await fetch('https://cdn.jsdelivr.net/npm/quran-cloud@1.0.0/dist/quran.json');
+        if (!res.ok) throw new Error('Failed to fetch');
         const data = await res.json();
+        if (cancelled) return;
         const targetSurah = data.find((s: any) => s.id === surahNum);
         if (targetSurah) {
           setSurah(targetSurah);
+        } else {
+          setError('Surah not found');
         }
       } catch (err) {
+        if (cancelled) return;
         console.error(err);
+        setError('Failed to load surah');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
+    
     loadSurah();
+    return () => { cancelled = true; };
   }, [surahNum]);
 
   async function fetchTafsir(ayahNum: number) {
@@ -97,15 +108,16 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-emerald-700 text-xl">Loading...</div>
+        <div className="text-emerald-700 text-xl">Loading Quran...</div>
       </div>
     );
   }
 
-  if (!surah) {
+  if (error || !surah) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Surah not found</div>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="text-red-600 mb-4">{error || 'Surah not found'}</div>
+        <Link href="/" className="text-emerald-700">← Back to Home</Link>
       </div>
     );
   }
