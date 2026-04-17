@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { use } from 'react';
+import quranData from 'quran-cloud';
 
 export default function SurahPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -16,31 +17,14 @@ export default function SurahPage({ params }: { params: Promise<{ id: string }> 
   const [hadithData, setHadithData] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    
-    async function loadSurah() {
-      try {
-        const res = await fetch('https://cdn.jsdelivr.net/npm/quran-cloud@1.0.0/dist/quran.json');
-        if (!res.ok) throw new Error('Failed to fetch');
-        const data = await res.json();
-        if (cancelled) return;
-        const targetSurah = data.find((s: any) => s.id === surahNum);
-        if (targetSurah) {
-          setSurah(targetSurah);
-        } else {
-          setError('Surah not found');
-        }
-      } catch (err) {
-        if (cancelled) return;
-        console.error(err);
-        setError('Failed to load surah');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    // Use quran-cloud data directly instead of fetch
+    const targetSurah = quranData.find((s: any) => s.id === surahNum);
+    if (targetSurah) {
+      setSurah(targetSurah);
+    } else {
+      setError('Surah not found');
     }
-    
-    loadSurah();
-    return () => { cancelled = true; };
+    setLoading(false);
   }, [surahNum]);
 
   async function fetchTafsir(ayahNum: number) {
